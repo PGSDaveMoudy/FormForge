@@ -1,4 +1,5 @@
 import React, { useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { useAuthStore } from '../state/auth';
 import { Button } from './ui/Button';
 
@@ -75,8 +76,19 @@ export const Dashboard: React.FC = () => {
                   Welcome to FormForge Dashboard
                 </h3>
                 <p className="mt-2 text-sm text-gray-500">
-                  Your form building workspace is ready. The drag-and-drop form builder is coming soon!
+                  Your form building workspace is ready. Start creating professional forms now!
                 </p>
+                
+                <div className="mt-6">
+                  <Link to="/builder">
+                    <Button size="lg">
+                      <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                      </svg>
+                      Start Building Forms
+                    </Button>
+                  </Link>
+                </div>
                 
                 <div className="mt-8 grid grid-cols-1 md:grid-cols-3 gap-6">
                   <div className="bg-white rounded-lg p-6 shadow-sm border">
@@ -106,7 +118,7 @@ export const Dashboard: React.FC = () => {
                       </div>
                       <div className="ml-4">
                         <h4 className="text-lg font-medium text-gray-900">Form Builder</h4>
-                        <p className="text-sm text-gray-500">🔄 Coming Soon</p>
+                        <p className="text-sm text-gray-500">✅ Ready</p>
                       </div>
                     </div>
                   </div>

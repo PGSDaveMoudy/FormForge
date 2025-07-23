@@ -4,6 +4,7 @@ import { useAuthStore } from './state/auth';
 import { LoginForm } from './components/auth/LoginForm';
 import { RegisterForm } from './components/auth/RegisterForm';
 import { Dashboard } from './components/Dashboard';
+import { FormBuilder } from './components/FormBuilder';
 
 // Protected route component
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -71,6 +72,14 @@ function App() {
             element={
               <ProtectedRoute>
                 <Dashboard />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/builder" 
+            element={
+              <ProtectedRoute>
+                <FormBuilder />
               </ProtectedRoute>
             } 
           />
