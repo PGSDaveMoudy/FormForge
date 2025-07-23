@@ -1,0 +1,144 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  ADMIN
+  ORG_ADMIN
+  EDITOR
+  VIEWER
+}
+
+enum ElementType {
+  TEXT_INPUT
+  NUMBER_INPUT
+  EMAIL_INPUT
+  TEXTAREA
+  PICKLIST
+  MULTI_PICKLIST
+  DATE_PICKER
+  CHECKBOX
+  RADIO_GROUP
+  FILE_UPLOAD
+  SIGNATURE
+  EMAIL_VERIFY
+}
+
+enum SubmissionStatus {
+  PENDING
+  PROCESSED
+  FAILED
+  SPAM
+}
+
+model Organization {
+  id        String   @id @default(uuid())
+  name      String
+  domain    String?  @unique
+  settings  Json     @default("{}")
+  salesforceConfig Json?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  users User[]
+  forms Form[]
+
+  @@map("organizations")
+}
+
+model User {
+  id              String   @id @default(uuid())
+  email           String   @unique
+  firstName       String
+  lastName        String
+  password        String
+  role            UserRole @default(VIEWER)
+  organizationId  String?
+  isEmailVerified Boolean  @default(false)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  organization Organization? @relation(fields: [organizationId], references: [id])
+  createdForms Form[]
+  submissions  FormSubmission[]
+  tokens       RefreshToken[]
+
+  @@map("users")
+}
+
+model RefreshToken {
+  id        String   @id @default(uuid())
+  token     String   @unique
+  userId    String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("refresh_tokens")
+}
+
+model Form {
+  id             String   @id @default(uuid())
+  name           String
+  description    String?
+  elements       Json     @default("[]")
+  settings       Json     @default("{}")
+  organizationId String
+  createdBy      String
+  isPublished    Boolean  @default(false)
+  publishedAt    DateTime?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization Organization     @relation(fields: [organizationId], references: [id])
+  creator      User             @relation(fields: [createdBy], references: [id])
+  submissions  FormSubmission[]
+
+  @@map("forms")
+}
+
+model FormSubmission {
+  id          String           @id @default(uuid())
+  formId      String
+  data        Json
+  submittedBy String?
+  submittedAt DateTime         @default(now())
+  ipAddress   String
+  userAgent   String
+  status      SubmissionStatus @default(PENDING)
+
+  form Form  @relation(fields: [formId], references: [id], onDelete: Cascade)
+  user User? @relation(fields: [submittedBy], references: [id])
+
+  @@map("form_submissions")
+}
+
+model EmailVerification {
+  id        String   @id @default(uuid())
+  email     String
+  code      String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@unique([email, code])
+  @@map("email_verifications")
+}
+
+model PasswordReset {
+  id        String   @id @default(uuid())
+  email     String
+  token     String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@map("password_resets")
+}

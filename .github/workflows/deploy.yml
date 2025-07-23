@@ -1,0 +1,151 @@
+name: Deploy to VPS
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to deploy to'
+        required: true
+        default: 'production'
+        type: choice
+        options:
+          - production
+          - staging
+
+env:
+  NODE_VERSION: '20'
+  REGISTRY: docker.io
+  IMAGE_PREFIX: pgsdavemoudy/formforge
+
+jobs:
+  deploy:
+    name: Deploy to VPS
+    runs-on: ubuntu-latest
+    environment: ${{ github.event.inputs.environment || 'production' }}
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Set environment variables
+        run: |
+          if [[ "${{ github.event.inputs.environment }}" == "staging" ]]; then
+            echo "VPS_HOST=${{ secrets.STAGING_VPS_HOST }}" >> $GITHUB_ENV
+            echo "VPS_USER=${{ secrets.STAGING_VPS_USER }}" >> $GITHUB_ENV
+            echo "DEPLOY_PATH=/opt/formforge-staging" >> $GITHUB_ENV
+            echo "DOMAIN=staging.portwoodglobalsolutions.com" >> $GITHUB_ENV
+          else
+            echo "VPS_HOST=${{ secrets.PRODUCTION_VPS_HOST }}" >> $GITHUB_ENV
+            echo "VPS_USER=${{ secrets.PRODUCTION_VPS_USER }}" >> $GITHUB_ENV
+            echo "DEPLOY_PATH=/opt/formforge" >> $GITHUB_ENV
+            echo "DOMAIN=portwoodglobalsolutions.com" >> $GITHUB_ENV
+          fi
+      
+      - name: Setup SSH
+        uses: webfactory/ssh-agent@v0.8.0
+        with:
+          ssh-private-key: ${{ secrets.VPS_SSH_KEY }}
+      
+      - name: Add VPS to known hosts
+        run: |
+          ssh-keyscan -H ${{ env.VPS_HOST }} >> ~/.ssh/known_hosts
+      
+      - name: Create deployment directory
+        run: |
+          ssh ${{ env.VPS_USER }}@${{ env.VPS_HOST }} "
+            sudo mkdir -p ${{ env.DEPLOY_PATH }}
+            sudo chown ${{ env.VPS_USER }}:${{ env.VPS_USER }} ${{ env.DEPLOY_PATH }}
+          "
+      
+      - name: Copy files to VPS
+        run: |
+          rsync -avz --delete \
+            --exclude='node_modules' \
+            --exclude='.git' \
+            --exclude='coverage' \
+            --exclude='dist' \
+            ./ ${{ env.VPS_USER }}@${{ env.VPS_HOST }}:${{ env.DEPLOY_PATH }}/
+      
+      - name: Create environment file
+        run: |
+          ssh ${{ env.VPS_USER }}@${{ env.VPS_HOST }} "
+            cd ${{ env.DEPLOY_PATH }}
+            cat << 'EOF' > .env
+          NODE_ENV=production
+          DB_PASSWORD=${{ secrets.DB_PASSWORD }}
+          JWT_SECRET=${{ secrets.JWT_SECRET }}
+          JWT_REFRESH_SECRET=${{ secrets.JWT_REFRESH_SECRET }}
+          SENDGRID_API_KEY=${{ secrets.SENDGRID_API_KEY }}
+          FROM_EMAIL=${{ secrets.FROM_EMAIL }}
+          SALESFORCE_CLIENT_ID=${{ secrets.SALESFORCE_CLIENT_ID }}
+          SALESFORCE_CLIENT_SECRET=${{ secrets.SALESFORCE_CLIENT_SECRET }}
+          SALESFORCE_CALLBACK_URL=https://${{ env.DOMAIN }}/api/salesforce/callback
+          FRONTEND_URL=https://${{ env.DOMAIN }}
+          BACKEND_URL=https://${{ env.DOMAIN }}
+          EOF
+          "
+      
+      - name: Pull latest Docker images
+        run: |
+          ssh ${{ env.VPS_USER }}@${{ env.VPS_HOST }} "
+            cd ${{ env.DEPLOY_PATH }}
+            docker-compose pull
+          "
+      
+      - name: Run database migrations
+        run: |
+          ssh ${{ env.VPS_USER }}@${{ env.VPS_HOST }} "
+            cd ${{ env.DEPLOY_PATH }}
+            docker-compose run --rm backend npx prisma migrate deploy
+          "
+      
+      - name: Deploy application
+        run: |
+          ssh ${{ env.VPS_USER }}@${{ env.VPS_HOST }} "
+            cd ${{ env.DEPLOY_PATH }}
+            docker-compose down
+            docker-compose up -d
+            docker system prune -f
+          "
+      
+      - name: Health check
+        run: |
+          for i in {1..10}; do
+            if curl -f https://${{ env.DOMAIN }}/health; then
+              echo "✅ Application is healthy!"
+              break
+            fi
+            echo "Attempt $i/10: Application not ready yet..."
+            sleep 30
+          done
+      
+      - name: Renew SSL certificates
+        run: |
+          ssh ${{ env.VPS_USER }}@${{ env.VPS_HOST }} "
+            sudo certbot renew --quiet
+            sudo systemctl reload nginx
+          "
+      
+      - name: Create backup
+        run: |
+          ssh ${{ env.VPS_USER }}@${{ env.VPS_HOST }} "
+            cd ${{ env.DEPLOY_PATH }}
+            timestamp=\$(date +%Y%m%d_%H%M%S)
+            docker-compose exec -T postgres pg_dump -U formforge formforge > backups/formforge_\$timestamp.sql
+            find backups/ -name '*.sql' -mtime +7 -delete
+          "
+      
+      - name: Notify deployment success
+        if: success()
+        run: |
+          echo "🚀 Deployment to ${{ github.event.inputs.environment || 'production' }} successful!"
+          echo "URL: https://${{ env.DOMAIN }}"
+      
+      - name: Notify deployment failure
+        if: failure()
+        run: |
+          echo "❌ Deployment to ${{ github.event.inputs.environment || 'production' }} failed!"
+          exit 1
