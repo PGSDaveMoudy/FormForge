@@ -49,28 +49,23 @@ services:
       PORT: 3000
       DATABASE_URL: postgresql://formforge:${DB_PASSWORD:-formforge_dev}@postgres:5432/formforge
       REDIS_URL: redis://redis:6379
-      JWT_SECRET: ${JWT_SECRET}
-      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET}
-      SENDGRID_API_KEY: ${SENDGRID_API_KEY}
-      FROM_EMAIL: ${FROM_EMAIL}
-      SALESFORCE_CLIENT_ID: ${SALESFORCE_CLIENT_ID}
-      SALESFORCE_CLIENT_SECRET: ${SALESFORCE_CLIENT_SECRET}
-      SALESFORCE_CALLBACK_URL: ${SALESFORCE_CALLBACK_URL}
+      JWT_SECRET: ${JWT_SECRET:-default_jwt_secret_change_in_production}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:-default_refresh_secret_change_in_production}
+      SENDGRID_API_KEY: ${SENDGRID_API_KEY:-}
+      FROM_EMAIL: ${FROM_EMAIL:-noreply@portwoodglobalsolutions.com}
+      SALESFORCE_CLIENT_ID: ${SALESFORCE_CLIENT_ID:-}
+      SALESFORCE_CLIENT_SECRET: ${SALESFORCE_CLIENT_SECRET:-}
+      SALESFORCE_CALLBACK_URL: ${SALESFORCE_CALLBACK_URL:-https://portwoodglobalsolutions.com/api/salesforce/callback}
       FRONTEND_URL: ${FRONTEND_URL:-https://portwoodglobalsolutions.com}
       BACKEND_URL: ${BACKEND_URL:-https://portwoodglobalsolutions.com}
     ports:
       - "3000:3000"
-    depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
     networks:
       - formforge-network
     volumes:
       - ./uploads:/app/uploads
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3000/health"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -79,17 +74,18 @@ services:
     build:
       context: .
       dockerfile: frontend/Dockerfile
+      args:
+        VITE_API_URL: ${BACKEND_URL:-https://portwoodglobalsolutions.com}/api
     container_name: formforge-frontend
     restart: unless-stopped
     environment:
       NODE_ENV: ${NODE_ENV:-production}
-      VITE_API_URL: ${BACKEND_URL:-https://portwoodglobalsolutions.com}/api
     ports:
       - "5173:80"
     networks:
       - formforge-network
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:80"]
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:80"]
       interval: 30s
       timeout: 10s
       retries: 3

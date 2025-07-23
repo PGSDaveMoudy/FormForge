@@ -42,6 +42,9 @@ RUN npx prisma generate
 FROM base AS runner
 WORKDIR /app
 
+# Install wget for health checks
+RUN apk add --no-cache wget
+
 RUN addgroup --system --gid 1001 nodejs
 RUN adduser --system --uid 1001 nodejs
 
@@ -68,6 +71,6 @@ WORKDIR /app/backend
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
-  CMD curl -f http://localhost:3000/health || exit 1
+  CMD wget --quiet --tries=1 --spider http://localhost:3000/health || exit 1
 
 CMD ["node", "dist/server.js"]
