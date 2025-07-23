@@ -52,13 +52,32 @@ FormForge/
 
 ## 🚀 Quick Start
 
-### Prerequisites
-- Node.js 20+
-- Docker & Docker Compose
-- PostgreSQL (for local development)
-- Redis (for local development)
+### Universal Deployment (Recommended)
+
+Deploy FormForge to any VPS with any domain in minutes:
+
+```bash
+# One-command deployment
+curl -sSL https://raw.githubusercontent.com/PGSDaveMoudy/FormForge/master/scripts/universal-deploy.sh | sudo bash
+```
+
+**What it does:**
+- ✅ Installs all dependencies (Docker, Nginx, SSL)
+- ✅ Prompts for your domain and configuration
+- ✅ Sets up SSL certificates automatically
+- ✅ Configures security and monitoring
+- ✅ Creates management scripts
+
+**Requirements:**
+- Ubuntu 22.04/20.04 VPS
+- Root access
+- Domain pointed to your server
+
+[📖 **Universal Deployment Guide**](docs/UNIVERSAL_DEPLOYMENT.md)
 
 ### Local Development
+
+For development purposes:
 
 1. **Clone the repository**
    ```bash
@@ -81,12 +100,7 @@ FormForge/
    docker-compose run --rm backend npx prisma migrate dev
    ```
 
-5. **Seed the database (optional)**
-   ```bash
-   docker-compose run --rm backend npm run db:seed
-   ```
-
-6. **Access the application**
+5. **Access the application**
    - Frontend: http://localhost:5173
    - Backend API: http://localhost:3000
    - API Documentation: http://localhost:3000/api/docs

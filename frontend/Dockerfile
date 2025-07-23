@@ -12,7 +12,7 @@ COPY frontend/package.json ./frontend/
 COPY shared/package.json ./shared/
 
 # Install dependencies
-RUN npm ci --only=production && npm cache clean --force
+RUN npm install --only=production && npm cache clean --force
 
 # Build the application
 FROM base AS builder
@@ -24,7 +24,7 @@ COPY frontend/ ./frontend/
 COPY shared/ ./shared/
 
 # Install all dependencies (including dev)
-RUN npm ci
+RUN npm install
 
 # Build shared package first
 WORKDIR /app/shared

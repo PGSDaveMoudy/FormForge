@@ -12,7 +12,7 @@ COPY backend/package.json ./backend/
 COPY shared/package.json ./shared/
 
 # Install dependencies
-RUN npm ci --only=production && npm cache clean --force
+RUN npm install --only=production && npm cache clean --force
 
 # Build the application
 FROM base AS builder
@@ -27,7 +27,7 @@ COPY backend/tsconfig.json ./backend/
 COPY backend/prisma ./backend/prisma/
 
 # Install all dependencies (including dev)
-RUN npm ci
+RUN npm install
 
 # Build shared package first
 WORKDIR /app/shared
