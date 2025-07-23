@@ -70,7 +70,7 @@ cd "$PROJECT_ROOT"
 # Pull latest code (only in production/staging)
 if [[ "$ENVIRONMENT" != "development" ]]; then
     log_info "Pulling latest code from repository..."
-    git pull origin main
+    git pull origin master
 fi
 
 # Create backup directory if it doesn't exist
